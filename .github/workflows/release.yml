@@ -1,0 +1,148 @@
+name: build-and-release
+
+# =============================================================================
+# 这个 workflow 跑在「公开的二进制发布仓库 moloStudio/m6-download」里。
+#
+# 架构：源码只存在于私有 Gitea（git.molopc.com/molo/m6-dev），GitHub 这边
+# 只有两样东西——这份构建编排 + 宣传页（index.html / README.md）。
+# 构建时 runner 临时 clone 一份源码到 src/，编译完产物挂到 Release，源码
+# 不会驻留在 GitHub，也不进仓库内容。
+#
+# 触发方式：手动（Actions → build-and-release → Run workflow → 填版本 tag）。
+# 不设 push tag 触发，因为源码与 tag 都在 Gitea，不在这个仓库。
+# =============================================================================
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要发布的版本 tag（例如 v1.0.0，须与 package.json 的 version 对应）'
+        required: true
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_TAG: ${{ inputs.tag }}
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 构建矩阵：Windows / Linux / macOS(arm64 + x64)，四个并行任务
+  # ---------------------------------------------------------------------------
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows
+            os: windows-latest
+            target: win32-x64
+            builder: "--win --x64"
+            glob: |
+              src/dist/*.exe
+          - name: linux
+            os: ubuntu-22.04
+            target: linux-x64
+            builder: "--linux"
+            glob: |
+              src/dist/*.AppImage
+              src/dist/*.deb
+              src/dist/*.tar.gz
+          - name: macos-arm64
+            os: macos-15
+            target: darwin-arm64
+            builder: "--mac --arm64"
+            glob: |
+              src/dist/*.dmg
+              src/dist/*.zip
+          - name: macos-x64
+            os: macos-15
+            target: darwin-x64
+            builder: "--mac --x64"
+            glob: |
+              src/dist/*.dmg
+              src/dist/*.zip
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      # 源码从私有 Gitea 拉取到 src/。凭据藏在 secret GITEA_CLONE_URL 里，
+      # 形如 https://<gitea登录名>:<只读令牌>@git.molopc.com/molo/m6-dev.git
+      - name: 拉取源码到 src/
+        run: git clone --depth 1 "${{ secrets.GITEA_CLONE_URL }}" ./src
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 安装依赖
+        working-directory: ./src
+        run: npm ci
+        env:
+          ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+
+      - name: 拉取内置解析组件（yt-dlp / ffmpeg / ffprobe）
+        working-directory: ./src
+        run: node tools/fetch-bins.js ${{ matrix.target }}
+
+      # 离线回归（513 项）。只在 Linux 上跑一次，失败不挡打包：
+      # 与开发机环境有差异，产物仍需人工冒烟。
+      - name: 离线回归（不挡打包）
+        if: runner.os == 'Linux'
+        working-directory: ./src
+        continue-on-error: true
+        run: npm run test:all
+
+      # Windows / Linux 打包
+      - name: 打包 ${{ matrix.name }}
+        if: ${{ !startsWith(matrix.name, 'macos') }}
+        working-directory: ./src
+        run: npx electron-builder ${{ matrix.builder }} --publish never
+
+      # macOS 打包：没配证书时关掉钥匙串签名发现，electron-builder 会做
+      # ad-hoc 签名（Apple Silicon 上没签名跑不起来）
+      - name: 打包 ${{ matrix.name }}（mac）
+        if: startsWith(matrix.name, 'macos')
+        working-directory: ./src
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npx electron-builder ${{ matrix.builder }} --publish never
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: m6-${{ matrix.name }}
+          if-no-files-found: error
+          path: ${{ matrix.glob }}
+
+  # ---------------------------------------------------------------------------
+  # 汇总四个平台的产物，一次性建 Release 并上传
+  # ---------------------------------------------------------------------------
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: 汇总所有平台产物
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: 创建 Release 并上传产物
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: M6 Downloader ${{ env.RELEASE_TAG }}
+          body: |
+            多线程 · 智能嗅探 · 干净利落 —— 下载，本该明媚。
+
+            - **Windows**：安装包（NSIS）+ 便携版
+            - **macOS**：Apple Silicon（arm64）/ Intel（x64），dmg + zip
+            - **Linux**：AppImage + deb + tar.gz
+
+            > 源码未托管在本仓库。产品介绍见官网，版本历史见 Releases。
+          files: |
+            artifacts/**
+          draft: false

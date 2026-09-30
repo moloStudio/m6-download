@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>明媚下载器 · M6 Downloader — 下载，本该明媚。</title>
+<meta name="description" content="明媚下载器 M6：多线程分段下载 + 内置浏览器嗅探 + HLS/BT + 可扩展插件体系。零广告、零捆绑、默认可离线。多线程 · 智能嗅探 · 干净利落。" />
+<meta name="color-scheme" content="light dark" />
+<meta property="og:title" content="明媚下载器 · M6 Downloader" />
+<meta property="og:description" content="下载，本该明媚。多线程 · 智能嗅探 · 干净利落。" />
+<meta property="og:type" content="website" />
+<style>
+/* ==========================================================================
+   明媚下载器 · M6 Downloader — 落地页样式
+   配色令牌严格遵循 docs/BRAND.md §3（v1.2）
+   ========================================================================== */
+:root {
+  /* 品牌色四个令牌 */
+  --brand: #FFD166;          /* 填充：按钮底 / 进度条，不得当文字色 */
+  --brand-2: #FF7A00;        /* 渐变另一端 / 描边 / 焦点环 */
+  --brand-ink: #17161A;      /* 压在 --brand 填充之上的文字色 */
+  --brand-text: #9A5400;     /* 浅底上的品牌色文字 */
+  --brand-text-dark: #FFC98A;/* 深底上的品牌色文字 */
+  --glow: #FFE7A8;           /* 卡片高光 / 浅色底点缀 */
+
+  /* 变体 */
+  --brand-dim: rgba(255, 122, 0, .10);
+  --brand-dim-2: rgba(255, 122, 0, .22);
+  --shadow-brand: rgba(255, 122, 0, .26);
+
+  /* 中性色 */
+  --bg: #FAF8F4;             /* 暖白 */
+  --bg-deep: #17161A;        /* 暖调黑 */
+  --card: #FFFFFF;
+  --card-deep: #1E1D22;
+  --face2: #F5F2EC;
+  --divider: #EAE6DE;
+  --t1: #17161A;             /* 主文字 */
+  --t2: #6B6A70;             /* 次文字 */
+  --t3: #9A979E;             /* 弱文字 */
+
+  --tech: #2E9BFF;
+  --ok: #12A150;
+  --warn: #CF8B00;
+  --err: #E04347;
+
+  --radius: 18px;
+  --radius-lg: 26px;
+  --font-sans: "Inter", "Manrope", "Segoe UI", -apple-system, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Mono", "SF Mono", Consolas, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--t1);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+a { color: inherit; text-decoration: none; }
+img, svg { display: block; }
+::selection { background: var(--brand); color: var(--brand-ink); }
+
+/* ---------------- 布局工具 ---------------- */
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+.section { padding: 96px 0; }
+.section--tight { padding: 64px 0; }
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600; letter-spacing: .12em;
+  color: var(--brand-text); text-transform: uppercase;
+}
+.eyebrow::before { content: ""; width: 22px; height: 2px; background: var(--brand-2); border-radius: 2px; }
+h1, h2, h3 { line-height: 1.2; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 34px; margin: 14px 0 12px; }
+.lead { color: var(--t2); font-size: 17px; max-width: 640px; }
+
+/* ---------------- 导航 ---------------- */
+.nav {
+  position: sticky; top: 0; z-index: 50;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: saturate(1.4) blur(12px);
+  border-bottom: 1px solid var(--divider);
+}
+.nav .wrap { display: flex; align-items: center; gap: 28px; height: 64px; }
+.brand { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 17px; }
+.brand .mark { width: 34px; height: 34px; border-radius: 9px; }
+.brand small { display: block; font-weight: 500; font-size: 11px; color: var(--t3); letter-spacing: .08em; }
+.nav-links { display: flex; gap: 4px; margin-left: auto; }
+.nav-links a {
+  padding: 7px 14px; border-radius: 10px; font-size: 14.5px; color: var(--t2); font-weight: 500;
+  transition: color .15s, background .15s;
+}
+.nav-links a:hover { color: var(--t1); background: var(--face2); }
+.nav-cta {
+  padding: 9px 18px; border-radius: 11px; background: var(--brand); color: var(--brand-ink);
+  font-weight: 600; font-size: 14.5px; box-shadow: 0 6px 18px var(--shadow-brand);
+  transition: transform .12s, box-shadow .12s;
+}
+.nav-cta:hover { transform: translateY(-1px); box-shadow: 0 9px 24px var(--shadow-brand); }
+@media (max-width: 720px) { .nav-links { display: none; } }
+
+/* ---------------- Hero ---------------- */
+.hero { position: relative; overflow: hidden; padding: 96px 0 72px; }
+.hero::before {
+  content: ""; position: absolute; inset: -40% -20% auto -20%; height: 90%;
+  background: radial-gradient(60% 55% at 50% 0%, var(--glow) 0%, transparent 70%);
+  opacity: .55; pointer-events: none;
+}
+.hero .wrap { position: relative; display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center; }
+.hero-glow { font-size: 15px; font-weight: 600; color: var(--brand-text); margin-bottom: 8px; }
+.hero h1 { font-size: clamp(44px, 7vw, 76px); letter-spacing: -0.02em; font-weight: 800; }
+.hero h1 .accent { color: var(--brand-2); }
+.hero .sub { margin: 20px 0 8px; font-size: 20px; color: var(--t2); }
+.hero .en { font-size: 15px; color: var(--t3); letter-spacing: .18em; text-transform: uppercase; }
+.hero .desc { margin-top: 18px; font-size: 17px; color: var(--t2); max-width: 520px; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 34px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 14px 26px; border-radius: 14px; font-weight: 600; font-size: 16px;
+  cursor: pointer; transition: transform .12s, box-shadow .12s, background .15s, border-color .15s;
+}
+.btn svg { width: 18px; height: 18px; }
+.btn-primary { background: var(--brand); color: var(--brand-ink); box-shadow: 0 8px 26px var(--shadow-brand); }
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 34px var(--shadow-brand); }
+.btn-ghost { border: 1px solid var(--divider); background: var(--card); color: var(--t1); }
+.btn-ghost:hover { border-color: var(--brand-2); background: var(--face2); }
+.hero-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 26px; }
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; color: var(--t2); background: var(--card); border: 1px solid var(--divider);
+  padding: 6px 12px; border-radius: 999px;
+}
+.badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+
+/* 右侧 Logo 展示 */
+.hero-art { display: flex; justify-content: center; align-items: center; }
+.logo-frame {
+  width: clamp(220px, 26vw, 300px); aspect-ratio: 1; border-radius: 22%;
+  box-shadow: 0 30px 80px rgba(23, 22, 26, .22), 0 0 0 12px var(--card), 0 0 0 13px var(--divider);
+  transition: transform .4s cubic-bezier(.2,.8,.2,1);
+}
+.hero-art:hover .logo-frame { transform: rotate(-3deg) scale(1.02); }
+
+@media (max-width: 860px) {
+  .hero .wrap { grid-template-columns: 1fr; }
+  .hero-art { order: -1; }
+  .logo-frame { width: 180px; }
+}
+
+/* ---------------- 数据带 ---------------- */
+.stats-band { background: var(--bg-deep); color: #F2F0EC; padding: 56px 0; }
+.stats-band .wrap { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+.stat { padding: 8px 4px; }
+.stat .num { font-size: 40px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--brand); letter-spacing: -0.02em; }
+.stat .num .unit { font-size: 20px; font-weight: 700; margin-left: 2px; }
+.stat .label { font-size: 13.5px; color: #A8A5AD; margin-top: 6px; }
+@media (max-width: 760px) { .stats-band .wrap { grid-template-columns: repeat(2, 1fr); } }
+
+/* ---------------- 特性 ---------------- */
+.features .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 40px; }
+.feat {
+  background: var(--card); border: 1px solid var(--divider); border-radius: var(--radius);
+  padding: 26px; transition: transform .15s, border-color .15s, box-shadow .15s; position: relative; overflow: hidden;
+}
+.feat:hover { transform: translateY(-3px); border-color: var(--brand-2); box-shadow: 0 16px 40px rgba(23,22,26,.08); }
+.feat .ico {
+  width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center;
+  background: var(--brand-dim); color: var(--brand-2); margin-bottom: 16px;
+}
+.feat .ico svg { width: 24px; height: 24px; }
+.feat h3 { font-size: 18px; margin-bottom: 8px; }
+.feat p { font-size: 14.5px; color: var(--t2); }
+.feat .tag { position: absolute; top: 22px; right: 20px; font-size: 12px; color: var(--tech); font-weight: 600; }
+@media (max-width: 900px) { .features .grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .features .grid { grid-template-columns: 1fr; } }
+
+/* ---------------- 引擎原理 ---------------- */
+.engine { background: var(--face2); }
+.engine .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 40px; }
+.step { background: var(--card); border-radius: var(--radius); padding: 28px; }
+.step .no { font-size: 13px; font-weight: 700; color: var(--brand-2); font-variant-numeric: tabular-nums; letter-spacing: .1em; }
+.step h3 { font-size: 18px; margin: 10px 0 8px; }
+.step p { font-size: 14.5px; color: var(--t2); }
+@media (max-width: 900px) { .engine .steps { grid-template-columns: 1fr; } }
+
+/* ---------------- 情怀 / 品牌故事 ---------------- */
+.manifesto { background: var(--bg-deep); color: #F2F0EC; overflow: hidden; }
+.manifesto .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; }
+.manifesto h2 { font-size: 40px; color: #fff; }
+.manifesto h2 em { font-style: normal; color: var(--brand); }
+.manifesto .body p { color: #A8A5AD; font-size: 16px; margin-bottom: 18px; }
+.manifesto .body p strong { color: #F2F0EC; font-weight: 600; }
+.manifesto-words { display: flex; flex-direction: column; gap: 14px; }
+.word {
+  border-left: 3px solid var(--brand-2); padding: 18px 22px; background: var(--card-deep);
+  border-radius: 0 14px 14px 0;
+}
+.word h3 { font-size: 17px; color: #fff; margin-bottom: 6px; }
+.word p { font-size: 14px; color: #A8A5AD; }
+.principle-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+.principle {
+  padding: 9px 16px; border-radius: 999px; background: var(--card-deep);
+  border: 1px solid #302E36; font-size: 13.5px; color: #D7D5DA;
+}
+.principle b { color: var(--brand-text-dark); font-weight: 700; }
+@media (max-width: 860px) { .manifesto .wrap { grid-template-columns: 1fr; } }
+
+/* ---------------- 下载入口 ---------------- */
+.downloads .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 40px; }
+.dl {
+  background: var(--card); border: 1px solid var(--divider); border-radius: var(--radius-lg);
+  padding: 30px 26px; display: flex; flex-direction: column; transition: border-color .15s, box-shadow .15s;
+}
+.dl:hover { border-color: var(--brand-2); box-shadow: 0 18px 44px rgba(23,22,26,.1); }
+.dl .os { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.dl .os svg { width: 30px; height: 30px; color: var(--brand-2); }
+.dl .os h3 { font-size: 20px; }
+.dl .desc { font-size: 14px; color: var(--t2); margin-bottom: 18px; flex: 1; }
+.dl .links { display: flex; flex-direction: column; gap: 9px; }
+.pill {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 15px; border-radius: 11px; background: var(--face2); font-size: 14px;
+  transition: background .15s;
+}
+.pill:hover { background: var(--brand-dim); }
+.pill .name { font-weight: 600; }
+.pill .meta { font-size: 12px; color: var(--t3); font-variant-numeric: tabular-nums; }
+.dl .primary {
+  margin-top: 16px; width: 100%; justify-content: center;
+  background: var(--brand); color: var(--brand-ink); font-weight: 700;
+  border-radius: 12px; padding: 13px;
+}
+.dl .primary:hover { transform: translateY(-1px); }
+@media (max-width: 900px) { .downloads .cards { grid-template-columns: 1fr; } }
+
+.release-note { margin-top: 22px; text-align: center; font-size: 13.5px; color: var(--t3); }
+.release-note a { color: var(--tech); }
+
+/* ---------------- 合规 / 页脚 ---------------- */
+.compliance { background: var(--face2); border-top: 1px solid var(--divider); }
+.compliance .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 28px; }
+.compliance h3 { font-size: 15.5px; margin-bottom: 8px; }
+.compliance p, .compliance li { font-size: 13.5px; color: var(--t2); }
+.compliance ul { list-style: none; }
+.compliance li { padding-left: 16px; position: relative; margin-bottom: 5px; }
+.compliance li::before { content: "·"; position: absolute; left: 4px; color: var(--brand-2); font-weight: 700; }
+@media (max-width: 820px) { .compliance .grid { grid-template-columns: 1fr; } }
+
+footer { background: var(--bg-deep); color: #A8A5AD; padding: 40px 0; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between; }
+.foot-brand { display: flex; align-items: center; gap: 12px; color: #F2F0EC; font-weight: 600; }
+.foot-brand .mark { width: 26px; height: 26px; border-radius: 7px; }
+footer a { color: var(--brand-text-dark); }
+footer .small { font-size: 12.5px; }
+</style>
+</head>
+<body>
+
+<!-- ======================= 导航 ======================= -->
+<nav class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top">
+      <svg class="mark" viewBox="0 0 128 128" aria-hidden="true">
+        <defs><linearGradient id="nvb" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FFD166"/><stop offset="100%" stop-color="#FF7A00"/></linearGradient></defs>
+        <rect width="128" height="128" rx="28" fill="url(#nvb)"/>
+        <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M64 30V78" stroke-width="10"/><path d="M46 64L64 86L82 64" stroke-width="10"/><path d="M48 92Q64 104 80 92" stroke-width="7" opacity=".95"/>
+        </g>
+      </svg>
+      <span>M6 Downloader<small>明媚下载器</small></span>
+    </a>
+    <div class="nav-links">
+      <a href="#features">特性</a>
+      <a href="#engine">引擎</a>
+      <a href="#story">我们的主张</a>
+      <a href="#downloads">下载</a>
+    </div>
+    <a class="nav-cta" href="#downloads">立即下载</a>
+  </div>
+</nav>
+
+<!-- ======================= Hero ======================= -->
+<header class="hero" id="top">
+  <div class="wrap">
+    <div>
+      <div class="hero-glow">Bright. Fast. Done.</div>
+      <h1>下载，<br />本该<span class="accent">明媚</span>。</h1>
+      <p class="sub">多线程 · 智能嗅探 · 干净利落</p>
+      <p class="desc">
+        一个打开就亮、用完就走的桌面下载器。多线程分段、断点续传、HLS、BT 都给你，
+        内置浏览器嗅探，点开网页就能认出视频直链，一键入队——不广告、不限速、不捆绑。
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#downloads">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M6 11l6 6 6-6"/><path d="M4 21h16"/></svg>
+          下载 M6
+        </a>
+        <a class="btn btn-ghost" href="#engine">看看它为什么快
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+      <div class="hero-badges">
+        <span class="badge"><span class="dot"></span>零第三方依赖引擎</span>
+        <span class="badge"><span class="dot"></span>无广告 · 无捆绑</span>
+        <span class="badge"><span class="dot"></span>默认可离线</span>
+        <span class="badge"><span class="dot"></span>Windows / macOS / Linux</span>
+      </div>
+    </div>
+    <div class="hero-art">
+      <svg class="logo-frame" viewBox="0 0 128 128" role="img" aria-label="明媚下载器 M6 Logo">
+        <defs>
+          <linearGradient id="hero-bg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#FFD166"/><stop offset="100%" stop-color="#FF7A00"/>
+          </linearGradient>
+        </defs>
+        <rect width="128" height="128" rx="28" fill="url(#hero-bg)"/>
+        <g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">
+          <g stroke-width="1.2">
+            <circle cx="64" cy="64" r="44" opacity="0.18"/>
+            <circle cx="64" cy="64" r="36" opacity="0.12"/>
+            <circle cx="64" cy="64" r="28" opacity="0.08"/>
+          </g>
+          <path d="M64 30V78" stroke-width="9"/>
+          <path d="M46 64L64 86L82 64" stroke-width="9"/>
+          <path d="M48 92Q64 104 80 92" stroke-width="6" opacity="0.95"/>
+        </g>
+        <circle cx="64" cy="30" r="3" fill="#FFFFFF"/>
+      </svg>
+    </div>
+  </div>
+</header>
+
+<!-- ======================= 数据带 ======================= -->
+<section class="stats-band">
+  <div class="wrap">
+    <div class="stat"><div class="num">9.7<span class="unit">×</span></div><div class="label">8 线程 vs 单连接加速</div></div>
+    <div class="stat"><div class="num">64<span class="unit">线程</span></div><div class="label">自适应分段上限</div></div>
+    <div class="stat"><div class="num">100<span class="unit">%</span></div><div class="label">续传后 SHA-256 一致</div></div>
+    <div class="stat"><div class="num">513<span class="unit">项</span></div><div class="label">离线回归测试护航</div></div>
+  </div>
+</section>
+
+<!-- ======================= 特性 ======================= -->
+<section class="section features" id="features">
+  <div class="wrap">
+    <span class="eyebrow">能力总览</span>
+    <h2>下载这件事，做到位了</h2>
+    <p class="lead">不堆花哨功能。把「快、准、稳」三件事做深，再给你一套真正省事的嗅探和接管。</p>
+
+    <div class="grid">
+      <div class="feat">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg></div>
+        <span class="tag">核心</span>
+        <h3>多线程分段下载</h3>
+        <p>1–64 线程，按文件大小自适应切块（1–32 MB/块）。谁空谁抢的动态调度，不再被「一根慢线程」拖死。</p>
+      </div>
+
+      <div class="feat">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></div>
+        <span class="tag">抗断电</span>
+        <h3>断点续传，绝不拼错</h3>
+        <p>进程被强杀、断电、重启都能接着下。续传前比对 ETag / Last-Modified，服务端文件变了就重下，绝不用新旧字节拼出坏文件。</p>
+      </div>
+
+      <div class="feat">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 9l5 3-5 3z"/></svg></div>
+        <span class="tag">全流程</span>
+        <h3>HLS 流（m3u8）</h3>
+        <p>TS 与 fMP4 都支持，AES-128 解密、分片级续传、直播录制。`#EXT-X-BYTERANGE` 与 init 段都处理对，产物可精确校验。</p>
+      </div>
+
+      <div class="feat">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg></div>
+        <span class="tag">磁力 / 种子</span>
+        <h3>BT 下载</h3>
+        <p>磁力链接与 .torrent 都能入队，BEP 元数据交换、多 tracker、逐块 SHA-1 校验，坏块自动重取。只下不上。</p>
+      </div>
+
+      <div class="feat">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg></div>
+        <span class="tag">省事</span>
+        <h3>内置浏览器嗅探</h3>
+        <p>应用里打开网页，它自己认出页面上的视频 / 音频 / 直链，分片也能反推清单地址。一键丢进下载队列。</p>
+      </div>
+
+      <div class="feat">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></div>
+        <span class="tag">接管</span>
+        <h3>浏览器下载交接</h3>
+        <p>配套 Chrome / Edge 扩展，系统浏览器里的下载一键转到 M6，带上 Cookie / Referer 登录态，失败自动回退不丢文件。</p>
+      </div>
+
+      <div class="feat">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 6 6 1-4.5 4 1.5 6L12 16l-6 3 1.5-6L3 9l6-1z"/></svg></div>
+        <span class="tag">可扩展</span>
+        <h3>扩展插件体系</h3>
+        <p>一份目录 + manifest 就能加新站点解析。兼容 Gopeed 扩展 API，现成的社区扩展大多直接能用，沙箱隔离运行。</p>
+      </div>
+
+      <div class="feat">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h10M4 17h7"/></svg></div>
+        <span class="tag">顺手</span>
+        <h3>批量 · 悬浮球 · 托盘</h3>
+        <p>粘贴文本自动识别所有链接、.txt 批量导入；迅雷风桌面悬浮球；关窗不退出，托盘一键暂停全部。</p>
+      </div>
+
+      <div class="feat">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/><path d="M2 2h20"/></svg></div>
+        <span class="tag">视频站</span>
+        <h3>视频解析</h3>
+        <p>B 站 / YouTube / X 专门解析，其余走通用兜底。内置 yt-dlp + ffmpeg 开箱即用，清晰度任你挑。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 引擎原理 ======================= -->
+<section class="section engine" id="engine">
+  <div class="wrap">
+    <span class="eyebrow">引擎之道</span>
+    <h2>凭什么「快且不坏」</h2>
+    <p class="lead">下载引擎是一份零第三方依赖的纯 Node 代码，可脱离界面单独测试。快，来自对细节的死磕。</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="no">01 · 先探路</div>
+        <h3>别急着下</h3>
+        <p>发 HEAD 问大小，再用 `Range: bytes=0-0` 实测服务器是否真支持分段——不轻信误导性的 Accept-Ranges 头。不支持就老实单流，不硬凑线程。</p>
+      </div>
+      <div class="step">
+        <div class="no">02 · 谁空谁抢</div>
+        <h3>动态调度</h3>
+        <p>文件切成「块数 ≈ 线程数 × 12」的小块，worker 从共享队列抢块。慢线程还压着块，快线程早已抢到后面的继续跑，不存在空转。</p>
+      </div>
+      <div class="step">
+        <div class="no">03 · 预分配就地写</div>
+        <h3>不需要合并</h3>
+        <p>先把文件撑到最终大小，每块用带偏移的写直接落盘，位置互不重叠。下载完就是完整文件，只差一次 rename。</p>
+      </div>
+      <div class="step">
+        <div class="no">04 · 看门狗</div>
+        <h3>滞死块回收</h3>
+        <p>每 3 秒巡检：哪个块超过阈值一个字节都不吐，就掐断在途请求、把块放回队列给活线程。这是多线程收益最大的一项。</p>
+      </div>
+      <div class="step">
+        <div class="no">05 · 两本账</div>
+        <h3>进度与测速分开</h3>
+        <p>`downloaded` 记完成量、`transferred` 记真实搬下来的流量。测速永远用后者，块失败退回时账面不虚高。</p>
+      </div>
+      <div class="step">
+        <div class="no">06 · 连接复用</div>
+        <h3>省下握手</h3>
+        <p>keep-alive 连接池复用。分段每块都新建连接的话，TLS 握手就能吃掉一大半时间。</p>
+      </div>
+    </div>
+
+    <div class="lead" style="margin-top:34px; max-width:none;">
+      实测：阿里云镜像单文件，单连接 <code style="font-family:var(--font-mono); background:var(--card); padding:2px 7px; border-radius:6px;">94.4s</code>
+      → 8 线程 <code style="font-family:var(--font-mono); background:var(--card); padding:2px 7px; border-radius:6px;">9.8s</code>，
+      中途强杀续传后成品文件 <strong style="color:var(--brand-2);">SHA-256 完全一致</strong>。
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 情怀 / 主张 ======================= -->
+<section class="section manifesto" id="story">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow" style="color:var(--brand-text-dark);">为什么做它</span>
+      <h2>下载是互联网最古老的需求，<br />也是<em>最容易被辜负</em>的一个。</h2>
+      <div class="body">
+        <p>打开是广告，点下去是限速，装完发现捆绑了一堆用不上的东西。<strong>我们不想再接受这种默认。</strong></p>
+        <p>「明媚」是一个主张：一个下载工具可以打开就亮、用完就走，不喧哗、不打扰、不藏私。它应该像晴朗天气一样，是个不需要被注意、但从不出问题的存在。</p>
+        <p>所以 M6 不内置解析接口、不塞资源目录、不绕过付费与登录、不默认上传任何内容。产品原则只有一句：<strong>本地优先、无广告、无捆绑、默认可离线。</strong></p>
+      </div>
+      <div class="principle-row">
+        <span class="principle"><b>本地优先</b></span>
+        <span class="principle"><b>无广告</b></span>
+        <span class="principle"><b>无捆绑</b></span>
+        <span class="principle"><b>默认可离线</b></span>
+        <span class="principle"><b>无遥测</b></span>
+      </div>
+    </div>
+    <div class="manifesto-words">
+      <div class="word">
+        <h3>「明媚」</h3>
+        <p>明亮美好、晴朗开阔。是对「灰暗、杂乱、夹带广告」这一行业刻板印象的正面回应——把下载这件事，重新照进光里。</p>
+      </div>
+      <div class="word">
+        <h3>「六六」（M6）</h3>
+        <p>结构之六：蜂巢单元，稳定紧密、可无限延展——多线程并发最贴切的几何隐喻；顺遂之六：六六大顺，一份朴素的好意头。</p>
+      </div>
+      <div class="word">
+        <h3>「光箭」</h3>
+        <p>一道光里，一个箭头向下落地。三圈光晕把埋在页面里的资源照亮，箭头只指一个方向——向下，下载的方向。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 下载入口 ======================= -->
+<section class="section downloads" id="downloads">
+  <div class="wrap">
+    <span class="eyebrow">开始使用</span>
+    <h2>下载 M6 Downloader</h2>
+    <p class="lead">最新安装包由 GitHub Actions 构建，各平台选对应格式。免费 · MIT 许可。</p>
+
+    <div class="cards">
+      <div class="dl">
+        <div class="os">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="4.5" width="21" height="15" rx="2"/><path d="M1.5 9.5h21"/></svg>
+          <h3>Windows</h3>
+        </div>
+        <p class="desc">x64。安装版可选目录、建快捷方式；便携版双击即用、不写注册表。</p>
+        <div class="links">
+          <a class="pill" href="https://github.com/moloStudio/m6-download/releases/latest"><span class="name">安装包（NSIS）</span><span class="meta">setup.exe</span></a>
+          <a class="pill" href="https://github.com/moloStudio/m6-download/releases/latest"><span class="name">便携版</span><span class="meta">portable.exe</span></a>
+        </div>
+        <a class="btn primary" href="https://github.com/moloStudio/m6-download/releases/latest">下载 Windows 版</a>
+      </div>
+
+      <div class="dl">
+        <div class="os">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a8 8 0 0 0-8 8c0 5 8 12 8 12s8-7 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="2.6"/></svg>
+          <h3>macOS</h3>
+        </div>
+        <p class="desc">Apple Silicon（arm64）与 Intel（x64）双架构，dmg 或 zip。</p>
+        <div class="links">
+          <a class="pill" href="https://github.com/moloStudio/m6-download/releases/latest"><span class="name">Apple Silicon</span><span class="meta">arm64 .dmg</span></a>
+          <a class="pill" href="https://github.com/moloStudio/m6-download/releases/latest"><span class="name">Intel</span><span class="meta">x64 .dmg</span></a>
+        </div>
+        <a class="btn primary" href="https://github.com/moloStudio/m6-download/releases/latest">下载 macOS 版</a>
+      </div>
+
+      <div class="dl">
+        <div class="os">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 2.5v19M4.2 7h15.6M2.5 12h19"/></svg>
+          <h3>Linux</h3>
+        </div>
+        <p class="desc">AppImage 单文件免安装，deb 给 Debian / Ubuntu，tar.gz 解压即用。</p>
+        <div class="links">
+          <a class="pill" href="https://github.com/moloStudio/m6-download/releases/latest"><span class="name">AppImage</span><span class="meta">x64</span></a>
+          <a class="pill" href="https://github.com/moloStudio/m6-download/releases/latest"><span class="name">deb / tar.gz</span><span class="meta">x64</span></a>
+        </div>
+        <a class="btn primary" href="https://github.com/moloStudio/m6-download/releases/latest">下载 Linux 版</a>
+      </div>
+    </div>
+
+    <p class="release-note">
+      所有平台的正式安装包统一发布在
+      <a href="https://github.com/moloStudio/m6-download/releases">GitHub Releases</a> ·
+      版本历史与相关说明见 <a href="https://github.com/moloStudio/m6-download">仓库主页</a>
+    </p>
+  </div>
+</section>
+
+<!-- ======================= 合规 ======================= -->
+<section class="section section--tight compliance">
+  <div class="wrap">
+    <span class="eyebrow">边界与承诺</span>
+    <h2>合规，不绕弯</h2>
+    <div class="grid">
+      <div>
+        <h3>使用范围</h3>
+        <p>通用下载客户端，仅用于下载你有权获取的内容：自有文件、开放许可资源、已获授权的分发内容。</p>
+      </div>
+      <div>
+        <h3>明确不做</h3>
+        <ul>
+          <li>不内置影视解析接口、不塞资源站点目录</li>
+          <li>不破解 DRM、不跳过付费与登录</li>
+          <li>不做无人值守的删除或覆盖</li>
+        </ul>
+      </div>
+      <div>
+        <h3>隐私原则</h3>
+        <ul>
+          <li>下载记录默认存本地，官方不接收</li>
+          <li>无遥测、不训练、不共享</li>
+          <li>数据可随时导出与彻底删除</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 页脚 ======================= -->
+<footer>
+  <div class="wrap">
+    <div class="foot-brand">
+      <svg class="mark" viewBox="0 0 128 128" aria-hidden="true">
+        <defs><linearGradient id="ftb" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FFD166"/><stop offset="100%" stop-color="#FF7A00"/></linearGradient></defs>
+        <rect width="128" height="128" rx="28" fill="url(#ftb)"/>
+        <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M64 30V78" stroke-width="10"/><path d="M46 64L64 86L82 64" stroke-width="10"/><path d="M48 92Q64 104 80 92" stroke-width="7" opacity=".95"/>
+        </g>
+      </svg>
+      <span>明媚下载器 · M6 Downloader</span>
+    </div>
+    <div class="small">
+      多线程 · 智能嗅探 · 干净利落 — 下载，本该明媚。
+    </div>
+    <div class="small">
+      <a href="https://github.com/moloStudio/m6-download">GitHub</a>
+      &nbsp;·&nbsp; MIT &nbsp;·&nbsp; Copyright © 2026 molo
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
